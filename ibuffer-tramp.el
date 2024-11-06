@@ -53,8 +53,6 @@
 (require 'ibuffer)
 (require 'ibuf-ext)
 (require 'tramp)
-(eval-when-compile
-  (require 'cl))
 
 (defun ibuffer-tramp-connection (buf)
   "Return a cons cell (method . host), or nil if the file is not
@@ -68,8 +66,15 @@ using a TRAMP connection"
 ;;;###autoload
 (defun ibuffer-tramp-generate-filter-groups-by-tramp-connection ()
   "Create a set of ibuffer filter groups based on the TRAMP connection of buffers"
-  (let ((roots (ibuffer-remove-duplicates
-                (delq nil (mapcar 'ibuffer-tramp-connection (buffer-list))))))
+  (let ((roots (if (>= emacs-major-version 29)
+                   (seq-uniq
+                    (delq nil (mapcar 'ibuffer-tramp-connection
+                                      (buffer-list))))
+                 (with-no-warnings
+                   (ibuffer-remove-duplicates
+                    (delq nil (mapcar 'ibuffer-tramp-connection (buffer-list)))))
+
+                 ) ))
     (mapcar (lambda (tramp-connection)
               (cons (format "%s:%s" (car tramp-connection) (cdr tramp-connection))
                     `((tramp-connection . ,tramp-connection))))
@@ -79,7 +84,7 @@ using a TRAMP connection"
     "Toggle current view to buffers with TRAMP connection QUALIFIER."
   (:description "TRAMP connection"
                 :reader (read-from-minibuffer "Filter by TRAMP connection (regexp): "))
-  (ibuffer-awhen (ibuffer-tramp-connection buf)
+  (when-let ((it (ibuffer-tramp-connection buf)))
     (equal qualifier it)))
 
 ;;;###autoload
